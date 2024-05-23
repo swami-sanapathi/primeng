@@ -181,7 +181,7 @@ export class MenubarService {
                             </a>
                         </ng-container>
                         <ng-container *ngIf="itemTemplate">
-                            <ng-template *ngTemplateOutlet="itemTemplate; context: { $implicit: processedItem.item }"></ng-template>
+                            <ng-template *ngTemplateOutlet="itemTemplate; context: { $implicit: processedItem.item, root: root }"></ng-template>
                         </ng-container>
                     </div>
                     <p-menubarSub
@@ -598,9 +598,11 @@ export class Menubar implements AfterContentInit, OnDestroy, OnInit {
                 case 'submenuicon':
                     this.submenuIconTemplate = item.template;
                     break;
+
                 case 'item':
                     this.itemTemplate = item.template;
                     break;
+
                 default:
                     this.itemTemplate = item.template;
                     break;
@@ -1049,11 +1051,6 @@ export class Menubar implements AfterContentInit, OnDestroy, OnInit {
             const anchorElement = element && DomHandler.findSingle(element, 'a[data-pc-section="action"]');
 
             anchorElement ? anchorElement.click() : element && element.click();
-
-            const processedItem = this.visibleItems[this.focusedItemInfo().index];
-            const grouped = this.isProccessedItemGroup(processedItem);
-
-            !grouped && (this.focusedItemInfo().index = this.findFirstFocusedItemIndex());
         }
 
         event.preventDefault();

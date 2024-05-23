@@ -24,6 +24,7 @@ import { DomHandler } from 'primeng/dom';
 import { SpinnerIcon } from 'primeng/icons/spinner';
 import { RippleModule } from 'primeng/ripple';
 import { ObjectUtils } from 'primeng/utils';
+import { AutoFocusModule } from 'primeng/autofocus';
 
 type ButtonIconPosition = 'left' | 'right' | 'top' | 'bottom';
 
@@ -60,7 +61,7 @@ export class ButtonDirective implements AfterViewInit, OnDestroy {
      * Text of the button.
      * @group Props
      */
-    @Input() get label(): string {
+    @Input() get label(): string | undefined {
         return this._label as string;
     }
     set label(val: string) {
@@ -342,23 +343,21 @@ export class ButtonDirective implements AfterViewInit, OnDestroy {
             [attr.data-pc-name]="'button'"
             [attr.data-pc-section]="'root'"
             [attr.tabindex]="tabindex"
+            pAutoFocus
+            [autofocus]="autofocus"
         >
             <ng-content></ng-content>
             <ng-container *ngTemplateOutlet="contentTemplate"></ng-container>
             <ng-container *ngIf="loading">
                 <ng-container *ngIf="!loadingIconTemplate">
-                    <span *ngIf="loadingIcon" [class]="'p-button-loading-icon pi-spin ' + loadingIcon" [ngClass]="iconClass()" [attr.aria-hidden]="true" [attr.data-pc-section]="'loadingicon'"></span>
+                    <span *ngIf="loadingIcon" [ngClass]="iconClass()" [attr.aria-hidden]="true" [attr.data-pc-section]="'loadingicon'"></span>
                     <SpinnerIcon *ngIf="!loadingIcon" [styleClass]="spinnerIconClass()" [spin]="true" [attr.aria-hidden]="true" [attr.data-pc-section]="'loadingicon'" />
                 </ng-container>
-                <span *ngIf="loadingIconTemplate" class="p-button-loading-icon" [ngClass]="iconClass()" [attr.aria-hidden]="true" [attr.data-pc-section]="'loadingicon'">
-                    <ng-template *ngTemplateOutlet="loadingIconTemplate"></ng-template>
-                </span>
+                <ng-template [ngIf]="loadingIconTemplate" *ngTemplateOutlet="loadingIconTemplate; context: { class: iconClass() }"></ng-template>
             </ng-container>
             <ng-container *ngIf="!loading">
                 <span *ngIf="icon && !iconTemplate" [class]="icon" [ngClass]="iconClass()" [attr.data-pc-section]="'icon'"></span>
-                <span *ngIf="!icon && iconTemplate" [ngClass]="iconClass()" [attr.data-pc-section]="'icon'">
-                    <ng-template [ngIf]="!icon" *ngTemplateOutlet="iconTemplate"></ng-template>
-                </span>
+                <ng-template [ngIf]="!icon && iconTemplate" *ngTemplateOutlet="iconTemplate; context: { class: iconClass() }"></ng-template>
             </ng-container>
             <span class="p-button-label" [attr.aria-hidden]="icon && !label" *ngIf="!contentTemplate && label" [attr.data-pc-section]="'label'">{{ label }}</span>
             <span [ngClass]="badgeStyleClass()" [class]="badgeClass" *ngIf="!contentTemplate && badge" [attr.data-pc-section]="'badge'">{{ badge }}</span>
@@ -436,7 +435,7 @@ export class Button implements AfterContentInit {
      * Defines the style of the button.
      * @group Props
      */
-    @Input() severity: 'secondary' | 'success' | 'info' | 'warning' | 'help' | 'danger' | 'contrast' | string | undefined;
+    @Input() severity: 'success' | 'info' | 'warning' | 'danger' | 'help' | 'primary' | 'secondary' | 'contrast' | null | undefined;
     /**
      * Add a border class without a background initially.
      * @group Props
@@ -478,6 +477,11 @@ export class Button implements AfterContentInit {
      */
     @Input() ariaLabel: string | undefined;
     /**
+     * When present, it specifies that the component should automatically get focus on load.
+     * @group Props
+     */
+    @Input({ transform: booleanAttribute }) autofocus: boolean | undefined;
+    /**
      * Callback to execute when button is clicked.
      * This event is intended to be used with the <p-button> component. Using a regular <button> element, use (click).
      * @param {MouseEvent} event - Mouse event.
@@ -517,6 +521,7 @@ export class Button implements AfterContentInit {
 
     iconClass() {
         return {
+            [`p-button-loading-icon pi-spin ${this.loadingIcon ?? ''}`]: this.loading,
             'p-button-icon': true,
             'p-button-icon-left': this.iconPos === 'left' && this.label,
             'p-button-icon-right': this.iconPos === 'right' && this.label,
@@ -577,7 +582,7 @@ export class Button implements AfterContentInit {
 }
 
 @NgModule({
-    imports: [CommonModule, RippleModule, SharedModule, SpinnerIcon],
+    imports: [CommonModule, RippleModule, SharedModule, AutoFocusModule, SpinnerIcon],
     exports: [ButtonDirective, Button, SharedModule],
     declarations: [ButtonDirective, Button]
 })

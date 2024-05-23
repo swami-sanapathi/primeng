@@ -484,12 +484,12 @@ export class Table implements OnInit, AfterViewInit, AfterContentInit, Blockable
      * Defines if the row is selectable.
      * @group Props
      */
-    @Input({ transform: booleanAttribute }) rowSelectable: boolean | undefined | any;
+    @Input() rowSelectable: (row: { data: any; index: number }) => boolean | undefined;
     /**
      * Function to optimize the dom operations by delegating to ngForTrackBy, default algorithm checks for object identity.
      * @group Props
      */
-    @Input({ transform: numberAttribute }) rowTrackBy: Function = (index: number, item: any) => item;
+    @Input() rowTrackBy: Function = (index: number, item: any) => item;
     /**
      * Defines if data is loaded and interacted with in lazy manner.
      * @group Props
@@ -539,12 +539,12 @@ export class Table implements OnInit, AfterViewInit, AfterContentInit, Blockable
      * Map instance to keep the expanded rows where key of the map is the data key of the row.
      * @group Props
      */
-    @Input({ transform: booleanAttribute }) expandedRowKeys: { [s: string]: boolean } = {};
+    @Input() expandedRowKeys: { [s: string]: boolean } = {};
     /**
      * Map instance to keep the rows being edited where key of the map is the data key of the row.
      * @group Props
      */
-    @Input({ transform: booleanAttribute }) editingRowKeys: { [s: string]: boolean } = {};
+    @Input() editingRowKeys: { [s: string]: boolean } = {};
     /**
      * Whether multiple rows can be expanded at any time. Valid values are "multiple" and "single".
      * @group Props
@@ -708,7 +708,7 @@ export class Table implements OnInit, AfterViewInit, AfterContentInit, Blockable
      * The breakpoint to define the maximum width boundary when using stack responsive layout.
      * @group Props
      */
-    @Input() breakpoint: string = '640px';
+    @Input() breakpoint: string = '960px';
     /**
      * Locale to be used in paginator formatting.
      * @group Props
@@ -2483,7 +2483,11 @@ export class Table implements OnInit, AfterViewInit, AfterContentInit, Blockable
         let containerLeft = DomHandler.getOffset(this.containerViewChild?.nativeElement).left;
         this.resizeColumnElement = event.target.parentElement;
         this.columnResizing = true;
-        this.lastResizerHelperX = event.pageX - containerLeft + this.containerViewChild?.nativeElement.scrollLeft;
+        if (event.type == 'touchstart') {
+            this.lastResizerHelperX = event.changedTouches[0].clientX - containerLeft + this.containerViewChild?.nativeElement.scrollLeft;
+        } else {
+            this.lastResizerHelperX = event.pageX - containerLeft + this.containerViewChild?.nativeElement.scrollLeft;
+        }
         this.onColumnResize(event);
         event.preventDefault();
     }
@@ -2493,8 +2497,11 @@ export class Table implements OnInit, AfterViewInit, AfterContentInit, Blockable
         DomHandler.addClass(this.containerViewChild?.nativeElement, 'p-unselectable-text');
         (<ElementRef>this.resizeHelperViewChild).nativeElement.style.height = this.containerViewChild?.nativeElement.offsetHeight + 'px';
         (<ElementRef>this.resizeHelperViewChild).nativeElement.style.top = 0 + 'px';
-        (<ElementRef>this.resizeHelperViewChild).nativeElement.style.left = event.pageX - containerLeft + this.containerViewChild?.nativeElement.scrollLeft + 'px';
-
+        if (event.type == 'touchmove') {
+            (<ElementRef>this.resizeHelperViewChild).nativeElement.style.left = event.changedTouches[0].clientX - containerLeft + this.containerViewChild?.nativeElement.scrollLeft + 'px';
+        } else {
+            (<ElementRef>this.resizeHelperViewChild).nativeElement.style.left = event.pageX - containerLeft + this.containerViewChild?.nativeElement.scrollLeft + 'px';
+        }
         (<ElementRef>this.resizeHelperViewChild).nativeElement.style.display = 'block';
     }
 
@@ -2968,6 +2975,7 @@ export class Table implements OnInit, AfterViewInit, AfterContentInit, Blockable
         this.styleElement = this.renderer.createElement('style');
         this.styleElement.type = 'text/css';
         this.renderer.appendChild(this.document.head, this.styleElement);
+        DomHandler.setAttribute(this.styleElement, 'nonce', this.config?.csp()?.nonce);
     }
 
     getGroupRowsMeta() {
@@ -3305,9 +3313,20 @@ export class FrozenColumn implements AfterViewInit {
     ngAfterViewInit() {
         this.zone.runOutsideAngular(() => {
             setTimeout(() => {
-                this.updateStickyPosition();
+                this.recalculateColumns();
             }, 1000);
         });
+    }
+
+    @HostListener('window:resize', ['$event'])
+    recalculateColumns() {
+        const siblings = DomHandler.siblings(this.el.nativeElement);
+        const index = DomHandler.index(this.el.nativeElement);
+        const time = (siblings.length - index + 1) * 50;
+
+        setTimeout(() => {
+            this.updateStickyPosition();
+        }, time);
     }
 
     _frozen: boolean = true;
@@ -3904,6 +3923,12 @@ export class ResizableColumn implements AfterViewInit, OnDestroy {
 
     resizerMouseDownListener: VoidListener;
 
+    resizerTouchStartListener: VoidListener;
+
+    resizerTouchMoveListener: VoidListener;
+
+    resizerTouchEndListener: VoidListener;
+
     documentMouseMoveListener: VoidListener;
 
     documentMouseUpListener: VoidListener;
@@ -3920,6 +3945,7 @@ export class ResizableColumn implements AfterViewInit, OnDestroy {
 
                 this.zone.runOutsideAngular(() => {
                     this.resizerMouseDownListener = this.renderer.listen(this.resizer, 'mousedown', this.onMouseDown.bind(this));
+                    this.resizerTouchStartListener = this.renderer.listen(this.resizer, 'touchstart', this.onTouchStart.bind(this));
                 });
             }
         }
@@ -3929,6 +3955,8 @@ export class ResizableColumn implements AfterViewInit, OnDestroy {
         this.zone.runOutsideAngular(() => {
             this.documentMouseMoveListener = this.renderer.listen(this.document, 'mousemove', this.onDocumentMouseMove.bind(this));
             this.documentMouseUpListener = this.renderer.listen(this.document, 'mouseup', this.onDocumentMouseUp.bind(this));
+            this.resizerTouchMoveListener = this.renderer.listen(this.resizer, 'touchmove', this.onTouchMove.bind(this));
+            this.resizerTouchEndListener = this.renderer.listen(this.resizer, 'touchend', this.onTouchEnd.bind(this));
         });
     }
 
@@ -3942,20 +3970,40 @@ export class ResizableColumn implements AfterViewInit, OnDestroy {
             this.documentMouseUpListener();
             this.documentMouseUpListener = null;
         }
-    }
+        if (this.resizerTouchMoveListener) {
+            this.resizerTouchMoveListener();
+            this.resizerTouchMoveListener = null;
+        }
 
-    onMouseDown(event: MouseEvent) {
-        if (event.which === 1) {
-            this.dt.onColumnResizeBegin(event);
-            this.bindDocumentEvents();
+        if (this.resizerTouchEndListener) {
+            this.resizerTouchEndListener();
+            this.resizerTouchEndListener = null;
         }
     }
 
+    onMouseDown(event: MouseEvent) {
+        this.dt.onColumnResizeBegin(event);
+        this.bindDocumentEvents();
+    }
+
+    onTouchStart(event: TouchEvent) {
+        this.dt.onColumnResizeBegin(event);
+        this.bindDocumentEvents();
+    }
+
+    onTouchMove(event: TouchEvent) {
+        this.dt.onColumnResize(event);
+    }
     onDocumentMouseMove(event: MouseEvent) {
         this.dt.onColumnResize(event);
     }
 
     onDocumentMouseUp(event: MouseEvent) {
+        this.dt.onColumnResizeEnd();
+        this.unbindDocumentEvents();
+    }
+
+    onTouchEnd(event: TouchEvent) {
         this.dt.onColumnResizeEnd();
         this.unbindDocumentEvents();
     }
@@ -4663,7 +4711,7 @@ export class TableCheckbox {
 
     constructor(public dt: Table, public tableService: TableService, public cd: ChangeDetectorRef) {
         this.subscription = this.dt.tableService.selectionSource$.subscribe(() => {
-            this.checked = this.dt.isSelected(this.value);
+            this.checked = this.dt.isSelected(this.value) && !this.disabled;
             this.ariaLabel = this.ariaLabel || this.dt.config.translation.aria ? (this.checked ? this.dt.config.translation.aria.selectRow : this.dt.config.translation.aria.unselectRow) : undefined;
             this.cd.markForCheck();
         });
@@ -4943,10 +4991,7 @@ export class ReorderableRow implements AfterViewInit {
         this.unbindEvents();
     }
 }
-/**
- * Column Filter element of Table.
- * @group Components
- */
+
 @Component({
     selector: 'p-columnFilter',
     template: `
@@ -5169,12 +5214,12 @@ export class ColumnFilter implements AfterContentInit {
      * Defines minimum fraction of digits.
      * @group Props
      */
-    @Input({ transform: numberAttribute }) minFractionDigits: number | undefined;
+    @Input({ transform: (value: unknown) => numberAttribute(value, null) }) minFractionDigits: number | undefined;
     /**
      * Defines maximum fraction of digits.
      * @group Props
      */
-    @Input({ transform: numberAttribute }) maxFractionDigits: number | undefined;
+    @Input({ transform: (value: unknown) => numberAttribute(value, null) }) maxFractionDigits: number | undefined;
     /**
      * Defines prefix of the filter.
      * @group Props
@@ -5220,6 +5265,18 @@ export class ColumnFilter implements AfterContentInit {
      * @group Props
      */
     @Input() ariaLabel: string | undefined;
+    /**
+     * Callback to invoke on overlay is shown.
+     * @param {AnimationEvent} originalEvent - animation event.
+     * @group Emits
+     */
+    @Output() onShow: EventEmitter<{ originalEvent: AnimationEvent }> = new EventEmitter<{ originalEvent: AnimationEvent }>();
+    /**
+     * Callback to invoke on overlay is hidden.
+     * @param {AnimationEvent} originalEvent - animation event.
+     * @group Emits
+     */
+    @Output() onHide: EventEmitter<{ originalEvent: AnimationEvent }> = new EventEmitter<{ originalEvent: AnimationEvent }>();
 
     @ViewChild('icon') icon: Nullable<ElementRef>;
 
@@ -5415,8 +5472,11 @@ export class ColumnFilter implements AfterContentInit {
     }
 
     onRowMatchModeChange(matchMode: string) {
-        (<FilterMetadata>this.dt.filters[<string>this.field]).matchMode = matchMode;
-        this.dt._filter();
+        const fieldFilter = <FilterMetadata>this.dt.filters[<string>this.field];
+        fieldFilter.matchMode = matchMode;
+        if (fieldFilter.value) {
+            this.dt._filter();
+        }
         this.hide();
     }
 
@@ -5552,6 +5612,7 @@ export class ColumnFilter implements AfterContentInit {
                 };
 
                 this.overlaySubscription = this.overlayService.clickObservable.subscribe(this.overlayEventListener);
+                this.onShow.emit({ originalEvent: event });
                 break;
 
             case 'void':
@@ -5571,6 +5632,7 @@ export class ColumnFilter implements AfterContentInit {
                 break;
             case 'void':
                 ZIndexUtils.clear(event.element);
+                this.onHide.emit({ originalEvent: event });
                 break;
         }
     }
@@ -5612,6 +5674,7 @@ export class ColumnFilter implements AfterContentInit {
 
     isOutsideClicked(event: any): boolean {
         return !(
+            DomHandler.hasClass(this.overlay?.nextElementSibling, 'p-overlay') ||
             this.overlay?.isSameNode(event.target) ||
             this.overlay?.contains(event.target) ||
             this.icon?.nativeElement.isSameNode(event.target) ||
@@ -5630,7 +5693,6 @@ export class ColumnFilter implements AfterContentInit {
             this.documentClickListener = this.renderer.listen(documentTarget, 'mousedown', (event) => {
                 const dialogElements = document.querySelectorAll('[role="dialog"]');
                 const targetIsColumnFilterMenuButton = event.target.closest('.p-column-filter-menu-button');
-
                 if (this.overlayVisible && this.isOutsideClicked(event) && (targetIsColumnFilterMenuButton || dialogElements?.length <= 1)) {
                     this.hide();
                 }
@@ -5807,9 +5869,9 @@ export class ColumnFilterFormElement implements OnInit {
 
     @Input() placeholder: string | undefined;
 
-    @Input({ transform: numberAttribute }) minFractionDigits: number | undefined;
+    @Input({ transform: (value: unknown) => numberAttribute(value, null) }) minFractionDigits: number | undefined;
 
-    @Input({ transform: numberAttribute }) maxFractionDigits: number | undefined;
+    @Input({ transform: (value: unknown) => numberAttribute(value, null) }) maxFractionDigits: number | undefined;
 
     @Input() prefix: string | undefined;
 

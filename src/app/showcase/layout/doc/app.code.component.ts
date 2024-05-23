@@ -152,7 +152,28 @@ export class AppCodeComponent {
 
     openStackBlitz() {
         if (this.code) {
-            useStackBlitz({ code: this.code, selector: this.selector, extFiles: this.extFiles, routeFiles: this.routeFiles });
+            let str = this.code.typescript;
+
+            const importModuleStatement = "import { ImportsModule } from './imports';";
+
+            if (!str.includes(importModuleStatement)) {
+                let modifiedCodeWithImportsModule = str.replace(/import\s+{[^{}]*}\s+from\s+'[^']+';[\r\n]*/g, (match) => {
+                    if (match.includes('Module') && !match.includes('ReactiveFormsModule')) {
+                        return '';
+                    }
+                    return match;
+                });
+
+                modifiedCodeWithImportsModule = modifiedCodeWithImportsModule.replace(/\bimports:\s*\[[^\]]*\]/, 'imports: [ImportsModule]');
+
+                const finalModifiedCode = modifiedCodeWithImportsModule.replace(/import\s+\{[^{}]*\}\s+from\s+'@angular\/core';/, (match) => match + '\n' + importModuleStatement);
+
+                str = finalModifiedCode;
+            }
+
+            const stackBlitzObject = { ...this.code, typescript: str };
+
+            useStackBlitz({ code: stackBlitzObject, selector: this.selector, extFiles: this.extFiles, routeFiles: this.routeFiles });
         }
     }
 

@@ -39,6 +39,7 @@ import { TimesIcon } from 'primeng/icons/times';
 import { InputTextModule } from 'primeng/inputtext';
 import { Nullable, VoidListener } from 'primeng/ts-helpers';
 import { ZIndexUtils } from 'primeng/utils';
+import { AutoFocusModule } from 'primeng/autofocus';
 import { Subscription } from 'rxjs';
 
 type Meter = {
@@ -53,7 +54,8 @@ type Meter = {
     selector: '[pPassword]',
     host: {
         class: 'p-inputtext p-component p-element',
-        '[class.p-filled]': 'filled'
+        '[class.p-filled]': 'filled',
+        '[class.p-variant-filled]': 'variant === "filled" || config.inputStyle() === "filled"'
     }
 })
 export class PasswordDirective implements OnDestroy, DoCheck {
@@ -89,6 +91,11 @@ export class PasswordDirective implements OnDestroy, DoCheck {
     @Input() set showPassword(show: boolean) {
         this.el.nativeElement.type = show ? 'text' : 'password';
     }
+    /**
+     * Specifies the input variant of the component.
+     * @group Props
+     */
+    @Input() variant: 'filled' | 'outlined' = 'outlined';
 
     panel: Nullable<HTMLDivElement>;
 
@@ -345,12 +352,15 @@ export const Password_VALUE_ACCESSOR: any = {
                 [attr.placeholder]="placeholder"
                 [attr.autocomplete]="autocomplete"
                 [value]="value"
+                [variant]="variant"
                 (input)="onInput($event)"
                 (focus)="onInputFocus($event)"
                 (blur)="onInputBlur($event)"
                 (keyup)="onKeyUp($event)"
                 [attr.maxlength]="maxLength"
                 [attr.data-pc-section]="'input'"
+                pAutoFocus
+                [autofocus]="autofocus"
             />
             <ng-container *ngIf="showClear && value != null">
                 <TimesIcon *ngIf="!clearIconTemplate" [styleClass]="'p-password-clear-icon'" (click)="clear()" [attr.data-pc-section]="'clearIcon'" />
@@ -532,6 +542,16 @@ export class Password implements AfterContentInit, OnInit {
      * @group Props
      */
     @Input({ transform: booleanAttribute }) showClear: boolean = false;
+    /**
+     * When present, it specifies that the component should automatically get focus on load.
+     * @group Props
+     */
+    @Input({ transform: booleanAttribute }) autofocus: boolean | undefined;
+    /**
+     * Specifies the input variant of the component.
+     * @group Props
+     */
+    @Input() variant: 'filled' | 'outlined' = 'outlined';
     /**
      * Callback to invoke when the component receives focus.
      * @param {Event} event - Browser event.
@@ -928,7 +948,7 @@ export class Password implements AfterContentInit, OnInit {
 }
 
 @NgModule({
-    imports: [CommonModule, InputTextModule, TimesIcon, EyeSlashIcon, EyeIcon],
+    imports: [CommonModule, InputTextModule, AutoFocusModule, TimesIcon, EyeSlashIcon, EyeIcon],
     exports: [PasswordDirective, Password, SharedModule],
     declarations: [PasswordDirective, Password, MapperPipe]
 })

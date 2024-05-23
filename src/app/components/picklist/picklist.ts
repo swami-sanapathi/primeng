@@ -450,7 +450,7 @@ export class PickList implements AfterViewChecked, AfterContentInit {
      * Function to optimize the dom operations by delegating to ngForTrackBy, default algorithm checks for object identity. Use sourceTrackBy or targetTrackBy in case different algorithms are needed per list.
      * @group Props
      */
-    @Input({ transform: numberAttribute }) trackBy: Function = (index: number, item: any) => item;
+    @Input() trackBy: Function = (index: number, item: any) => item;
     /**
      * Function to optimize the dom operations by delegating to ngForTrackBy in source list, default algorithm checks for object identity.
      * @group Props
@@ -1326,11 +1326,12 @@ export class PickList implements AfterViewChecked, AfterContentInit {
         let listElement = this.getListElement(listType);
         const selectedFirstItem = DomHandler.findSingle(listElement, 'li.p-picklist-item.p-highlight') || DomHandler.findSingle(listElement, 'li.p-picklist-item');
         const findIndex = ObjectUtils.findIndexInList(selectedFirstItem, listElement.children);
-
         this.focused[listType === this.SOURCE_LIST ? 'sourceList' : 'targetList'] = true;
-        const index = this.focusedOptionIndex !== -1 ? this.focusedOptionIndex : selectedFirstItem ? findIndex : -1;
 
-        this.changeFocusedOptionIndex(index, listType);
+        const sourceIndex = this.focusedOptionIndex !== -1 ? this.focusedOptionIndex : selectedFirstItem ? findIndex : -1;
+        const filteredIndex = this.findIndexInList(this.source[sourceIndex], this.visibleOptionsSource);
+
+        this.changeFocusedOptionIndex(filteredIndex, listType);
         this.onFocus.emit(event);
     }
 
@@ -1650,6 +1651,7 @@ export class PickList implements AfterViewChecked, AfterContentInit {
                 }`;
 
                 this.renderer.setProperty(this.styleElement, 'innerHTML', innerHTML);
+                DomHandler.setAttribute(this.styleElement, 'nonce', this.config?.csp()?.nonce);
             }
         }
     }

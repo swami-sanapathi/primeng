@@ -25,6 +25,7 @@ import {
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR, NgControl } from '@angular/forms';
 import { PrimeTemplate, SharedModule } from 'primeng/api';
+import { AutoFocusModule } from 'primeng/autofocus';
 import { ButtonModule } from 'primeng/button';
 import { DomHandler } from 'primeng/dom';
 import { AngleDownIcon } from 'primeng/icons/angledown';
@@ -67,6 +68,7 @@ export const INPUTNUMBER_VALUE_ACCESSOR: any = {
                 [ngStyle]="inputStyle"
                 [class]="inputStyleClass"
                 [value]="formattedValue()"
+                [attr.variant]="variant"
                 [attr.aria-valuemin]="min"
                 [attr.aria-valuemax]="max"
                 [attr.aria-valuenow]="value"
@@ -94,6 +96,8 @@ export const INPUTNUMBER_VALUE_ACCESSOR: any = {
                 (focus)="onInputFocus($event)"
                 (blur)="onInputBlur($event)"
                 [attr.data-pc-section]="'input'"
+                pAutoFocus
+                [autofocus]="autofocus"
             />
             <ng-container *ngIf="buttonLayout != 'vertical' && showClear && value">
                 <TimesIcon *ngIf="!clearIconTemplate" [ngClass]="'p-inputnumber-clear-icon'" (click)="clear()" [attr.data-pc-section]="'clearIcon'" />
@@ -368,15 +372,20 @@ export class InputNumber implements OnInit, AfterContentInit, OnChanges, Control
      */
     @Input({ transform: booleanAttribute }) useGrouping: boolean = true;
     /**
+     * Specifies the input variant of the component.
+     * @group Props
+     */
+    @Input() variant: 'filled' | 'outlined' = 'outlined';
+    /**
      * The minimum number of fraction digits to use. Possible values are from 0 to 20; the default for plain number and percent formatting is 0; the default for currency formatting is the number of minor unit digits provided by the ISO 4217 currency code list (2 if the list doesn't provide that information).
      * @group Props
      */
-    @Input({ transform: numberAttribute }) minFractionDigits: number | undefined;
+    @Input({ transform: (value: unknown) => numberAttribute(value, null) }) minFractionDigits: number | undefined;
     /**
      * The maximum number of fraction digits to use. Possible values are from 0 to 20; the default for plain number formatting is the larger of minimumFractionDigits and 3; the default for currency formatting is the larger of minimumFractionDigits and the number of minor unit digits provided by the ISO 4217 currency code list (2 if the list doesn't provide that information).
      * @group Props
      */
-    @Input({ transform: numberAttribute }) maxFractionDigits: number | undefined;
+    @Input({ transform: (value: unknown) => numberAttribute(value, null) }) maxFractionDigits: number | undefined;
     /**
      * Text to display before the value.
      * @group Props
@@ -402,6 +411,11 @@ export class InputNumber implements OnInit, AfterContentInit, OnChanges, Control
      * @group Props
      */
     @Input({ transform: booleanAttribute }) showClear: boolean = false;
+    /**
+     * When present, it specifies that the component should automatically get focus on load.
+     * @group Props
+     */
+    @Input({ transform: booleanAttribute }) autofocus: boolean | undefined;
     /**
      * When present, it specifies that the element should be disabled.
      * @group Props
@@ -639,11 +653,12 @@ export class InputNumber implements OnInit, AfterContentInit, OnChanges, Control
             if (this.format) {
                 let formatter = new Intl.NumberFormat(this.locale, this.getOptions());
                 let formattedValue = formatter.format(value);
-                if (this.prefix) {
+
+                if (this.prefix && value != this.prefix) {
                     formattedValue = this.prefix + formattedValue;
                 }
 
-                if (this.suffix) {
+                if (this.suffix && value != this.suffix) {
                     formattedValue = formattedValue + this.suffix;
                 }
 
@@ -657,12 +672,16 @@ export class InputNumber implements OnInit, AfterContentInit, OnChanges, Control
     }
 
     parseValue(text: any) {
+        const suffixRegex = new RegExp(this._suffix, '');
+        const prefixRegex = new RegExp(this._prefix, '');
+        const currencyRegex = new RegExp(this._currency, '');
+
         let filteredText = text
-            .replace(this._suffix as RegExp, '')
-            .replace(this._prefix as RegExp, '')
+            .replace(suffixRegex, '')
+            .replace(prefixRegex, '')
             .trim()
             .replace(/\s/g, '')
-            .replace(this._currency as RegExp, '')
+            .replace(currencyRegex, '')
             .replace(this._group, '')
             .replace(this._minusSign, '-')
             .replace(this._decimal, '.')
@@ -818,7 +837,7 @@ export class InputNumber implements OnInit, AfterContentInit, OnChanges, Control
             event.preventDefault();
         }
 
-        switch (event.code) {
+        switch (event.key) {
             case 'ArrowUp':
                 this.spin(event, 1);
                 event.preventDefault();
@@ -860,6 +879,10 @@ export class InputNumber implements OnInit, AfterContentInit, OnChanges, Control
                 event.preventDefault();
 
                 if (selectionStart === selectionEnd) {
+                    if ((selectionStart == 1 && this.prefix) || (selectionStart == inputValue.length && this.suffix)) {
+                        break;
+                    }
+
                     const deleteChar = inputValue.charAt(selectionStart - 1);
                     const { decimalCharIndex, decimalCharIndexWithoutPrefix } = this.getDecimalCharIndexes(inputValue);
 
@@ -903,6 +926,9 @@ export class InputNumber implements OnInit, AfterContentInit, OnChanges, Control
                 event.preventDefault();
 
                 if (selectionStart === selectionEnd) {
+                    if ((selectionStart == 0 && this.prefix) || (selectionStart == inputValue.length - 1 && this.suffix)) {
+                        break;
+                    }
                     const deleteChar = inputValue.charAt(selectionStart);
                     const { decimalCharIndex, decimalCharIndexWithoutPrefix } = this.getDecimalCharIndexes(inputValue);
 
@@ -977,7 +1003,6 @@ export class InputNumber implements OnInit, AfterContentInit, OnChanges, Control
             char = this._decimalChar;
             code = char.charCodeAt(0);
         }
-
         const newValue = this.parseValue(this.input.nativeElement.value + char);
         const newValueStr = newValue != null ? newValue.toString() : '';
 
@@ -1156,6 +1181,7 @@ export class InputNumber implements OnInit, AfterContentInit, OnChanges, Control
 
     initCursor() {
         let selectionStart = this.input?.nativeElement.selectionStart;
+        let selectionEnd = this.input?.nativeElement.selectionEnd;
         let inputValue = this.input?.nativeElement.value;
         let valueLength = inputValue.length;
         let index = null;
@@ -1163,7 +1189,12 @@ export class InputNumber implements OnInit, AfterContentInit, OnChanges, Control
         // remove prefix
         let prefixLength = (this.prefixChar || '').length;
         inputValue = inputValue.replace(this._prefix, '');
-        selectionStart = selectionStart - prefixLength;
+
+        // Will allow selecting whole prefix. But not a part of it.
+        // Negative values will trigger clauses after this to fix the cursor position.
+        if (selectionStart === selectionEnd || selectionStart !== 0 || selectionEnd < prefixLength) {
+            selectionStart -= prefixLength;
+        }
 
         let char = inputValue.charAt(selectionStart);
         if (this.isNumeralChar(char)) {
@@ -1454,7 +1485,7 @@ export class InputNumber implements OnInit, AfterContentInit, OnChanges, Control
 }
 
 @NgModule({
-    imports: [CommonModule, InputTextModule, ButtonModule, TimesIcon, AngleUpIcon, AngleDownIcon],
+    imports: [CommonModule, InputTextModule, ButtonModule, AutoFocusModule, TimesIcon, AngleUpIcon, AngleDownIcon],
     exports: [InputNumber, SharedModule],
     declarations: [InputNumber]
 })

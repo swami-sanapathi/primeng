@@ -2,7 +2,10 @@ import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, ElementRef, EventEmitter, Injectable, Injector, Input, NgModule, OnDestroy, OnInit, Output, ViewChild, booleanAttribute, forwardRef, numberAttribute } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR, NgControl } from '@angular/forms';
 import { Nullable } from 'primeng/ts-helpers';
+import { AutoFocusModule } from 'primeng/autofocus';
+
 import { RadioButtonClickEvent } from './radiobutton.interface';
+import { PrimeNGConfig } from 'primeng/api';
 
 export const RADIO_VALUE_ACCESSOR: any = {
     provide: NG_VALUE_ACCESSOR,
@@ -51,7 +54,13 @@ export class RadioControlRegistry {
     template: `
         <div
             [ngStyle]="style"
-            [ngClass]="{ 'p-radiobutton p-component': true, 'p-radiobutton-checked': checked, 'p-radiobutton-disabled': disabled, 'p-radiobutton-focused': focused }"
+            [ngClass]="{
+                'p-radiobutton p-component': true,
+                'p-radiobutton-checked': checked,
+                'p-radiobutton-disabled': disabled,
+                'p-radiobutton-focused': focused,
+                'p-variant-filled': variant === 'filled' || config.inputStyle() === 'filled'
+            }"
             [class]="styleClass"
             [attr.data-pc-name]="'radiobutton'"
             [attr.data-pc-section]="'root'"
@@ -73,6 +82,8 @@ export class RadioControlRegistry {
                     (focus)="onInputFocus($event)"
                     (blur)="onInputBlur($event)"
                     [attr.data-pc-section]="'hiddenInput'"
+                    pAutoFocus
+                    [autofocus]="autofocus"
                 />
             </div>
             <div [ngClass]="{ 'p-radiobutton-box': true, 'p-highlight': checked, 'p-disabled': disabled, 'p-focus': focused }" [attr.data-pc-section]="'input'">
@@ -122,6 +133,11 @@ export class RadioButton implements ControlValueAccessor, OnInit, OnDestroy {
      */
     @Input() label: string | undefined;
     /**
+     * Specifies the input variant of the component.
+     * @group Props
+     */
+    @Input() variant: 'filled' | 'outlined' = 'outlined';
+    /**
      * Index of the element in tabbing order.
      * @group Props
      */
@@ -157,6 +173,11 @@ export class RadioButton implements ControlValueAccessor, OnInit, OnDestroy {
      */
     @Input() labelStyleClass: string | undefined;
     /**
+     * When present, it specifies that the component should automatically get focus on load.
+     * @group Props
+     */
+    @Input({ transform: booleanAttribute }) autofocus: boolean | undefined;
+    /**
      * Callback to invoke on radio button click.
      * @param {RadioButtonClickEvent} event - Custom click event.
      * @group Emits
@@ -187,7 +208,7 @@ export class RadioButton implements ControlValueAccessor, OnInit, OnDestroy {
 
     control: Nullable<NgControl>;
 
-    constructor(public cd: ChangeDetectorRef, private injector: Injector, private registry: RadioControlRegistry) {}
+    constructor(public cd: ChangeDetectorRef, private injector: Injector, private registry: RadioControlRegistry, public config: PrimeNGConfig) {}
 
     ngOnInit() {
         this.control = this.injector.get(NgControl);
@@ -283,7 +304,7 @@ export class RadioButton implements ControlValueAccessor, OnInit, OnDestroy {
 }
 
 @NgModule({
-    imports: [CommonModule],
+    imports: [CommonModule, AutoFocusModule],
     exports: [RadioButton],
     declarations: [RadioButton]
 })

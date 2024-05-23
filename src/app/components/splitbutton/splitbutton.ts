@@ -5,6 +5,8 @@ import { ButtonModule } from 'primeng/button';
 import { ChevronDownIcon } from 'primeng/icons/chevrondown';
 import { TieredMenu, TieredMenuModule } from 'primeng/tieredmenu';
 import { UniqueComponentId } from 'primeng/utils';
+import { AutoFocusModule } from 'primeng/autofocus';
+
 import { ButtonProps, MenuButtonProps } from './splitbutton.interface';
 
 type SplitButtonIconPosition = 'left' | 'right';
@@ -30,7 +32,9 @@ type SplitButtonIconPosition = 'left' | 'right';
                     (click)="onDefaultButtonClick($event)"
                     [disabled]="disabled"
                     [attr.tabindex]="tabindex"
-                    [attr.aria-label]="buttonProps?.['aria-label'] || label"
+                    [ariaLabel]="buttonProps?.['ariaLabel'] || label"
+                    pAutoFocus
+                    [autofocus]="autofocus"
                 >
                     <ng-container *ngTemplateOutlet="contentTemplate"></ng-container>
                 </button>
@@ -51,7 +55,9 @@ type SplitButtonIconPosition = 'left' | 'right';
                     (click)="onDefaultButtonClick($event)"
                     [disabled]="buttonDisabled"
                     [attr.tabindex]="tabindex"
-                    [attr.aria-label]="buttonProps?.['aria-label']"
+                    [ariaLabel]="buttonProps?.['ariaLabel']"
+                    pAutoFocus
+                    [autofocus]="autofocus"
                 ></button>
             </ng-template>
             <button
@@ -65,10 +71,10 @@ type SplitButtonIconPosition = 'left' | 'right';
                 (click)="onDropdownButtonClick($event)"
                 (keydown)="onDropdownButtonKeydown($event)"
                 [disabled]="menuButtonDisabled"
-                [attr.aria-label]="menuButtonProps?.['aria-label'] || expandAriaLabel"
-                [attr.aria-haspopup]="menuButtonProps?.['aria-haspopup'] || true"
-                [attr.aria-expanded]="menuButtonProps?.['aria-expanded'] || isExpanded()"
-                [attr.aria-controls]="menuButtonProps?.['aria-controls'] || ariaId"
+                [ariaLabel]="menuButtonProps?.['ariaLabel'] || expandAriaLabel"
+                [attr.aria-haspopup]="menuButtonProps?.['ariaHasPopup'] || true"
+                [attr.aria-expanded]="menuButtonProps?.['ariaExpanded'] || isExpanded()"
+                [attr.aria-controls]="menuButtonProps?.['ariaControls'] || ariaId"
             >
                 <ChevronDownIcon *ngIf="!dropdownIconTemplate" />
                 <ng-template *ngTemplateOutlet="dropdownIconTemplate"></ng-template>
@@ -208,6 +214,11 @@ export class SplitButton {
      */
     @Input() menuButtonProps: MenuButtonProps | undefined;
     /**
+     * When present, it specifies that the component should automatically get focus on load.
+     * @group Props
+     */
+    @Input({ transform: booleanAttribute }) autofocus: boolean | undefined;
+    /**
      * Callback to invoke when default command button is clicked.
      * @param {MouseEvent} event - Mouse event.
      * @group Emits
@@ -332,7 +343,7 @@ export class SplitButton {
 }
 
 @NgModule({
-    imports: [CommonModule, ButtonModule, TieredMenuModule, ChevronDownIcon],
+    imports: [CommonModule, ButtonModule, TieredMenuModule, AutoFocusModule, ChevronDownIcon],
     exports: [SplitButton, ButtonModule, TieredMenuModule],
     declarations: [SplitButton]
 })

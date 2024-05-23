@@ -38,6 +38,7 @@ import { TimesIcon } from 'primeng/icons/times';
 import { CalendarIcon } from 'primeng/icons/calendar';
 import { Nullable, VoidListener } from 'primeng/ts-helpers';
 import { NavigationState, CalendarResponsiveOptions, CalendarTypeView, LocaleSettings, Month, CalendarMonthChangeEvent, CalendarYearChangeEvent } from './calendar.interface';
+import { AutoFocusModule } from 'primeng/autofocus';
 
 export const CALENDAR_VALUE_ACCESSOR: any = {
     provide: NG_VALUE_ACCESSOR,
@@ -92,8 +93,10 @@ export const CALENDAR_VALUE_ACCESSOR: any = {
                     [disabled]="disabled"
                     [attr.tabindex]="tabindex"
                     [attr.inputmode]="touchUI ? 'off' : null"
-                    [ngClass]="'p-inputtext p-component'"
+                    [ngClass]="inputClass"
                     autocomplete="off"
+                    pAutoFocus
+                    [autofocus]="autofocus"
                 />
                 <ng-container *ngIf="showClear && !disabled && value != null">
                     <TimesIcon *ngIf="!clearIconTemplate" [styleClass]="'p-calendar-clear-icon'" (click)="clear()" />
@@ -240,6 +243,7 @@ export const CALENDAR_VALUE_ACCESSOR: any = {
                                                         [ngClass]="{ 'p-highlight': isSelected(date) && date.selectable, 'p-disabled': !date.selectable }"
                                                         (click)="onDateSelect($event, date)"
                                                         draggable="false"
+                                                        [attr.data-date]="formatDateKey(formatDateMetaToDate(date))"
                                                         (keydown)="onDateCellKeydown($event, date, i)"
                                                         pRipple
                                                     >
@@ -677,6 +681,11 @@ export class Calendar implements OnInit, OnDestroy, ControlValueAccessor {
      */
     @Input() clearButtonStyleClass: string = 'p-button-text';
     /**
+     * When present, it specifies that the component should automatically get focus on load.
+     * @group Props
+     */
+    @Input({ transform: booleanAttribute }) autofocus: boolean | undefined;
+    /**
      * Whether to automatically manage layering.
      * @group Props
      */
@@ -736,6 +745,11 @@ export class Calendar implements OnInit, OnDestroy, ControlValueAccessor {
      * @group Props
      */
     @Input({ transform: numberAttribute }) tabindex: number | undefined;
+    /**
+     * Specifies the input variant of the component.
+     * @group Props
+     */
+    @Input() variant: 'filled' | 'outlined' = 'outlined';
     /**
      * The minimum selectable date.
      * @group Props
@@ -900,6 +914,13 @@ export class Calendar implements OnInit, OnDestroy, ControlValueAccessor {
             this.createMonths(this.currentMonth, this.currentYear);
         }
     }
+    get inputClass() {
+        return {
+            'p-inputtext p-component': true,
+            'p-variant-filled': this.variant === 'filled' || this.config.inputStyle() === 'filled'
+        };
+    }
+
     /**
      * Callback to invoke on focus of input field.
      * @param {Event} event - browser event.
@@ -1122,6 +1143,8 @@ export class Calendar implements OnInit, OnDestroy, ControlValueAccessor {
     preventFocus: Nullable<boolean>;
 
     _defaultDate!: Date;
+
+    _focusKey: Nullable<string> = null;
 
     private window: Window;
 
@@ -1584,6 +1607,7 @@ export class Calendar implements OnInit, OnDestroy, ControlValueAccessor {
 
     formatDateTime(date: any) {
         let formattedValue = this.keepInvalid ? date : null;
+        const isDateValid = this.isValidDateForTimeConstraints(date);
 
         if (this.isValidDate(date)) {
             if (this.timeOnly) {
@@ -1597,8 +1621,16 @@ export class Calendar implements OnInit, OnDestroy, ControlValueAccessor {
         } else if (this.dataType === 'string') {
             formattedValue = date;
         }
-
+        formattedValue = isDateValid ? formattedValue : '';
         return formattedValue;
+    }
+
+    formatDateMetaToDate(dateMeta: any): Date {
+        return new Date(dateMeta.year, dateMeta.month, dateMeta.day);
+    }
+
+    formatDateKey(date: Date): string {
+        return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
     }
 
     setCurrentHourPM(hours: number) {
@@ -1621,7 +1653,7 @@ export class Calendar implements OnInit, OnDestroy, ControlValueAccessor {
     }
 
     selectDate(dateMeta: any) {
-        let date = new Date(dateMeta.year, dateMeta.month, dateMeta.day);
+        let date = this.formatDateMetaToDate(dateMeta);
 
         if (this.showTime) {
             if (this.hourFormat == '12') {
@@ -1816,7 +1848,7 @@ export class Calendar implements OnInit, OnDestroy, ControlValueAccessor {
     isDateBetween(start: Date, end: Date, dateMeta: any) {
         let between: boolean = false;
         if (ObjectUtils.isDate(start) && ObjectUtils.isDate(end)) {
-            let date: Date = new Date(dateMeta.year, dateMeta.month, dateMeta.day);
+            let date: Date = this.formatDateMetaToDate(dateMeta);
             return start.getTime() <= date.getTime() && end.getTime() >= date.getTime();
         }
 
@@ -1987,8 +2019,12 @@ export class Calendar implements OnInit, OnDestroy, ControlValueAccessor {
                 if (this.inline) {
                     const headerElements = DomHandler.findSingle(this.containerViewChild?.nativeElement, '.p-datepicker-header');
                     const element = event.target;
-                    if (element == headerElements.children[headerElements.children.length - 1]) {
-                        this.initFocusableCell();
+                    if (this.timeOnly) {
+                        return;
+                    } else {
+                        if (element == headerElements.children[headerElements?.children?.length - 1]) {
+                            this.initFocusableCell();
+                        }
                     }
                 }
                 break;
@@ -2029,10 +2065,10 @@ export class Calendar implements OnInit, OnDestroy, ControlValueAccessor {
         }
     }
 
-    onDateCellKeydown(event: any, date: Date, groupIndex: number) {
+    onDateCellKeydown(event: any, dateMeta: any, groupIndex: number) {
         const cellContent = event.currentTarget;
         const cell = cellContent.parentElement;
-
+        const currentDate = this.formatDateMetaToDate(dateMeta);
         switch (event.which) {
             //down arrow
             case 40: {
@@ -2120,7 +2156,7 @@ export class Calendar implements OnInit, OnDestroy, ControlValueAccessor {
             //space
             case 13:
             case 32: {
-                this.onDateSelect(event, date);
+                this.onDateSelect(event, dateMeta);
                 event.preventDefault();
                 break;
             }
@@ -2140,6 +2176,52 @@ export class Calendar implements OnInit, OnDestroy, ControlValueAccessor {
                 }
                 break;
             }
+
+            // page up
+            case 33: {
+                cellContent.tabIndex = '-1';
+                const dateToFocus = new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, currentDate.getDate());
+                const focusKey = this.formatDateKey(dateToFocus);
+                this.navigateToMonth(true, groupIndex, `span[data-date='${focusKey}']:not(.p-disabled):not(.p-ink)`);
+                event.preventDefault();
+                break;
+            }
+
+            // page down
+            case 34: {
+                cellContent.tabIndex = '-1';
+                const dateToFocus = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, currentDate.getDate());
+                const focusKey = this.formatDateKey(dateToFocus);
+                this.navigateToMonth(false, groupIndex, `span[data-date='${focusKey}']:not(.p-disabled):not(.p-ink)`);
+                event.preventDefault();
+                break;
+            }
+
+            //home
+            case 36:
+                cellContent.tabIndex = '-1';
+                const firstDayDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+                const firstDayDateKey = this.formatDateKey(firstDayDate);
+                const firstDayCell = DomHandler.findSingle(cellContent.offsetParent, `span[data-date='${firstDayDateKey}']:not(.p-disabled):not(.p-ink)`);
+                if (firstDayCell) {
+                    firstDayCell.tabIndex = '0';
+                    firstDayCell.focus();
+                }
+                event.preventDefault();
+                break;
+
+            //end
+            case 35:
+                cellContent.tabIndex = '-1';
+                const lastDayDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+                const lastDayDateKey = this.formatDateKey(lastDayDate);
+                const lastDayCell = DomHandler.findSingle(cellContent.offsetParent, `span[data-date='${lastDayDateKey}']:not(.p-disabled):not(.p-ink)`);
+                if (lastDayDate) {
+                    lastDayCell.tabIndex = '0';
+                    lastDayCell.focus();
+                }
+                event.preventDefault();
+                break;
 
             default:
                 //no op
@@ -2308,27 +2390,41 @@ export class Calendar implements OnInit, OnDestroy, ControlValueAccessor {
         }
     }
 
-    navigateToMonth(prev: any, groupIndex: number) {
+    navigateToMonth(prev: boolean, groupIndex: number, focusKey?: string) {
         if (prev) {
             if (this.numberOfMonths === 1 || groupIndex === 0) {
                 this.navigationState = { backward: true };
+                this._focusKey = focusKey;
                 this.navBackward(event);
             } else {
                 let prevMonthContainer = this.contentViewChild.nativeElement.children[groupIndex - 1];
-                let cells = DomHandler.find(prevMonthContainer, '.p-datepicker-calendar td span:not(.p-disabled):not(.p-ink)');
-                let focusCell = cells[cells.length - 1];
-                focusCell.tabIndex = '0';
-                focusCell.focus();
+                if (focusKey) {
+                    const firstDayCell = DomHandler.findSingle(prevMonthContainer, focusKey);
+                    firstDayCell.tabIndex = '0';
+                    firstDayCell.focus();
+                } else {
+                    let cells = DomHandler.find(prevMonthContainer, '.p-datepicker-calendar td span:not(.p-disabled):not(.p-ink)');
+                    let focusCell = cells[cells.length - 1];
+                    focusCell.tabIndex = '0';
+                    focusCell.focus();
+                }
             }
         } else {
             if (this.numberOfMonths === 1 || groupIndex === this.numberOfMonths - 1) {
                 this.navigationState = { backward: false };
+                this._focusKey = focusKey;
                 this.navForward(event);
             } else {
                 let nextMonthContainer = this.contentViewChild.nativeElement.children[groupIndex + 1];
-                let focusCell = DomHandler.findSingle(nextMonthContainer, '.p-datepicker-calendar td span:not(.p-disabled):not(.p-ink)');
-                focusCell.tabIndex = '0';
-                focusCell.focus();
+                if (focusKey) {
+                    const firstDayCell = DomHandler.findSingle(nextMonthContainer, focusKey);
+                    firstDayCell.tabIndex = '0';
+                    firstDayCell.focus();
+                } else {
+                    let focusCell = DomHandler.findSingle(nextMonthContainer, '.p-datepicker-calendar td span:not(.p-disabled):not(.p-ink)');
+                    focusCell.tabIndex = '0';
+                    focusCell.focus();
+                }
             }
         }
     }
@@ -2351,7 +2447,7 @@ export class Calendar implements OnInit, OnDestroy, ControlValueAccessor {
                     } else if (this.currentView === 'year') {
                         cells = DomHandler.find(this.contentViewChild.nativeElement, '.p-yearpicker .p-yearpicker-year:not(.p-disabled)');
                     } else {
-                        cells = DomHandler.find(this.contentViewChild.nativeElement, '.p-datepicker-calendar td span:not(.p-disabled):not(.p-ink)');
+                        cells = DomHandler.find(this.contentViewChild.nativeElement, this._focusKey || '.p-datepicker-calendar td span:not(.p-disabled):not(.p-ink)');
                     }
 
                     if (cells && cells.length > 0) {
@@ -2363,7 +2459,7 @@ export class Calendar implements OnInit, OnDestroy, ControlValueAccessor {
                     } else if (this.currentView === 'year') {
                         cell = DomHandler.findSingle(this.contentViewChild.nativeElement, '.p-yearpicker .p-yearpicker-year:not(.p-disabled)');
                     } else {
-                        cell = DomHandler.findSingle(this.contentViewChild.nativeElement, '.p-datepicker-calendar td span:not(.p-disabled):not(.p-ink)');
+                        cell = DomHandler.findSingle(this.contentViewChild.nativeElement, this._focusKey || '.p-datepicker-calendar td span:not(.p-disabled):not(.p-ink)');
                     }
                 }
 
@@ -2374,6 +2470,7 @@ export class Calendar implements OnInit, OnDestroy, ControlValueAccessor {
             }
 
             this.navigationState = null;
+            this._focusKey = null;
         } else {
             this.initFocusableCell();
         }
@@ -2486,7 +2583,7 @@ export class Calendar implements OnInit, OnDestroy, ControlValueAccessor {
         this.createMonths(this.currentMonth, this.currentYear);
     }
 
-    convertTo24Hour = function (hours: number, pm: boolean) {
+    convertTo24Hour(hours: number, pm: boolean) {
         //@ts-ignore
         if (this.hourFormat == '12') {
             if (hours === 12) {
@@ -2496,10 +2593,11 @@ export class Calendar implements OnInit, OnDestroy, ControlValueAccessor {
             }
         }
         return hours;
-    };
+    }
 
     constrainTime(hour: number, minute: number, second: number, pm: boolean) {
         let returnTimeTriple: number[] = [hour, minute, second];
+        let minHoursExceeds12: boolean;
         let value = this.value;
         const convertedHour = this.convertTo24Hour(hour, pm);
         const isRange = this.isRangeSelection(),
@@ -2520,9 +2618,38 @@ export class Calendar implements OnInit, OnDestroy, ControlValueAccessor {
         const valueDateString = value ? value.toDateString() : null;
         let isMinDate = this.minDate && valueDateString && this.minDate.toDateString() === valueDateString;
         let isMaxDate = this.maxDate && valueDateString && this.maxDate.toDateString() === valueDateString;
+
+        if (isMinDate) {
+            minHoursExceeds12 = this.minDate.getHours() >= 12;
+        }
+
         switch (
             true // intentional fall through
         ) {
+            case isMinDate && minHoursExceeds12 && this.minDate.getHours() === 12 && this.minDate.getHours() > convertedHour:
+                returnTimeTriple[0] = 11;
+            case isMinDate && this.minDate.getHours() === convertedHour && this.minDate.getMinutes() > minute:
+                returnTimeTriple[1] = this.minDate.getMinutes();
+            case isMinDate && this.minDate.getHours() === convertedHour && this.minDate.getMinutes() === minute && this.minDate.getSeconds() > second:
+                returnTimeTriple[2] = this.minDate.getSeconds();
+                break;
+            case isMinDate && !minHoursExceeds12 && this.minDate.getHours() - 1 === convertedHour && this.minDate.getHours() > convertedHour:
+                returnTimeTriple[0] = 11;
+                this.pm = true;
+            case isMinDate && this.minDate.getHours() === convertedHour && this.minDate.getMinutes() > minute:
+                returnTimeTriple[1] = this.minDate.getMinutes();
+            case isMinDate && this.minDate.getHours() === convertedHour && this.minDate.getMinutes() === minute && this.minDate.getSeconds() > second:
+                returnTimeTriple[2] = this.minDate.getSeconds();
+                break;
+
+            case isMinDate && minHoursExceeds12 && this.minDate.getHours() > convertedHour && convertedHour !== 12:
+                this.setCurrentHourPM(this.minDate.getHours());
+                returnTimeTriple[0] = this.currentHour;
+            case isMinDate && this.minDate.getHours() === convertedHour && this.minDate.getMinutes() > minute:
+                returnTimeTriple[1] = this.minDate.getMinutes();
+            case isMinDate && this.minDate.getHours() === convertedHour && this.minDate.getMinutes() === minute && this.minDate.getSeconds() > second:
+                returnTimeTriple[2] = this.minDate.getSeconds();
+                break;
             case isMinDate && this.minDate.getHours() > convertedHour:
                 returnTimeTriple[0] = this.minDate.getHours();
             case isMinDate && this.minDate.getHours() === convertedHour && this.minDate.getMinutes() > minute:
@@ -2538,6 +2665,7 @@ export class Calendar implements OnInit, OnDestroy, ControlValueAccessor {
                 returnTimeTriple[2] = this.maxDate.getSeconds();
                 break;
         }
+
         return returnTimeTriple;
     }
 
@@ -2553,9 +2681,20 @@ export class Calendar implements OnInit, OnDestroy, ControlValueAccessor {
             }
             newHour = newHour >= 13 ? newHour - 12 : newHour;
         }
+        this.toggleAMPMIfNotMinDate(newPM);
         [this.currentHour, this.currentMinute, this.currentSecond] = this.constrainTime(newHour, this.currentMinute!, this.currentSecond!, newPM!);
-        this.pm = newPM;
         event.preventDefault();
+    }
+
+    toggleAMPMIfNotMinDate(newPM: boolean) {
+        let value = this.value;
+        const valueDateString = value ? value.toDateString() : null;
+        let isMinDate = this.minDate && valueDateString && this.minDate.toDateString() === valueDateString;
+        if (isMinDate && this.minDate.getHours() >= 12) {
+            this.pm = true;
+        } else {
+            this.pm = newPM;
+        }
     }
 
     onTimePickerElementMouseDown(event: Event, type: number, direction: number) {
@@ -2626,8 +2765,8 @@ export class Calendar implements OnInit, OnDestroy, ControlValueAccessor {
             }
             newHour = newHour <= 0 ? 12 + newHour : newHour;
         }
+        this.toggleAMPMIfNotMinDate(newPM);
         [this.currentHour, this.currentMinute, this.currentSecond] = this.constrainTime(newHour, this.currentMinute!, this.currentSecond!, newPM!);
-        this.pm = newPM;
         event.preventDefault();
     }
 
@@ -2694,8 +2833,8 @@ export class Calendar implements OnInit, OnDestroy, ControlValueAccessor {
 
     toggleAMPM(event: any) {
         const newPM = !this.pm;
-        [this.currentHour, this.currentMinute, this.currentSecond] = this.constrainTime(this.currentHour, this.currentMinute, this.currentSecond, newPM);
         this.pm = newPM;
+        [this.currentHour, this.currentMinute, this.currentSecond] = this.constrainTime(this.currentHour, this.currentMinute, this.currentSecond, newPM);
         this.updateTime();
         event.preventDefault();
     }
@@ -3359,6 +3498,13 @@ export class Calendar implements OnInit, OnDestroy, ControlValueAccessor {
         this.filled = (this.inputFieldValue && this.inputFieldValue != '') as boolean;
     }
 
+    isValidDateForTimeConstraints(selectedDate: Date) {
+        if (this.keepInvalid) {
+            return true; // If we are keeping invalid dates, we don't need to check for time constraints
+        }
+        return (!this.minDate || selectedDate >= this.minDate) && (!this.maxDate || selectedDate <= this.maxDate);
+    }
+
     onTodayButtonClick(event: any) {
         const date: Date = new Date();
         const dateMeta = { day: date.getDate(), month: date.getMonth(), year: date.getFullYear(), otherMonth: date.getMonth() !== this.currentMonth || date.getFullYear() !== this.currentYear, today: true, selectable: true };
@@ -3412,6 +3558,7 @@ export class Calendar implements OnInit, OnDestroy, ControlValueAccessor {
             }
 
             (<HTMLStyleElement>this.responsiveStyleElement).innerHTML = innerHTML;
+            DomHandler.setAttribute(this.responsiveStyleElement, 'nonce', this.config?.csp()?.nonce);
         }
     }
 
@@ -3530,7 +3677,7 @@ export class Calendar implements OnInit, OnDestroy, ControlValueAccessor {
 }
 
 @NgModule({
-    imports: [CommonModule, ButtonModule, SharedModule, RippleModule, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, ChevronDownIcon, TimesIcon, CalendarIcon],
+    imports: [CommonModule, ButtonModule, SharedModule, RippleModule, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, ChevronDownIcon, TimesIcon, CalendarIcon, AutoFocusModule],
     exports: [Calendar, ButtonModule, SharedModule],
     declarations: [Calendar]
 })
