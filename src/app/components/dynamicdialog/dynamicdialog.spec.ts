@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, NgModule } from '@angular/core';
-import { ComponentFixture, fakeAsync, flush, TestBed, tick } from '@angular/core/testing';
+import { ComponentFixture, TestBed, fakeAsync, flush, tick } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { Footer } from 'primeng/api';
 import { DialogService } from './dialogservice';
@@ -12,7 +12,10 @@ import { DynamicDialogRef } from './dynamicdialog-ref';
     template: ` <h2>PrimeNG ROCKS!</h2> `
 })
 export class TestComponent {
-    constructor(public ref: DynamicDialogRef, public config: DynamicDialogConfig) {}
+    constructor(
+        public ref: DynamicDialogRef,
+        public config: DynamicDialogConfig
+    ) {}
 }
 
 @Component({
@@ -60,8 +63,7 @@ export class FakeTestDialogModule {}
 describe('DynamicDialog', () => {
     beforeEach(() => {
         TestBed.configureTestingModule({
-            imports: [NoopAnimationsModule, FakeTestDialogModule],
-            declarations: [Footer]
+            imports: [NoopAnimationsModule, FakeTestDialogModule, Footer]
         });
     });
 

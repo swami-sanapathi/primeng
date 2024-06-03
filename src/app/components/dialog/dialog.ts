@@ -546,7 +546,15 @@ export class Dialog implements AfterContentInit, OnInit, OnDestroy {
         return this.config.getTranslation(TranslationKeys.ARIA)['maximizeLabel'];
     }
 
-    constructor(@Inject(DOCUMENT) private document: Document, @Inject(PLATFORM_ID) private platformId: any, public el: ElementRef, public renderer: Renderer2, public zone: NgZone, private cd: ChangeDetectorRef, public config: PrimeNGConfig) {
+    constructor(
+        @Inject(DOCUMENT) private document: Document,
+        @Inject(PLATFORM_ID) private platformId: any,
+        public el: ElementRef,
+        public renderer: Renderer2,
+        public zone: NgZone,
+        private cd: ChangeDetectorRef,
+        public config: PrimeNGConfig
+    ) {
         this.window = this.document.defaultView as Window;
     }
 
@@ -598,7 +606,7 @@ export class Dialog implements AfterContentInit, OnInit, OnDestroy {
         return this.header !== null ? UniqueComponentId() + '_header' : null;
     }
 
-    focus(focusParentElement = this.contentViewChild.nativeElement) {
+    focus(focusParentElement = this.contentViewChild?.nativeElement) {
         let focusable = DomHandler.getFocusableElement(focusParentElement, '[autofocus]');
         if (focusable) {
             this.zone.runOutsideAngular(() => {
