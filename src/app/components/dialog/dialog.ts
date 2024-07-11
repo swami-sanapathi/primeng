@@ -86,7 +86,7 @@ const hideAnimation = animation([animate('{{transition}}', style({ transform: '{
                 </ng-container>
 
                 <ng-template #notHeadless>
-                    <div *ngIf="resizable" class="p-resizable-handle" style="z-index: 90;" (mousedown)="initResize($event)"></div>
+                    <div *ngIf="resizable" class="p-resizable-handle" (mousedown)="initResize($event)"></div>
                     <div #titlebar class="p-dialog-header" (mousedown)="initDrag($event)" *ngIf="showHeader">
                         <span [id]="ariaLabelledBy" class="p-dialog-title" *ngIf="!headerFacet && !headerTemplate">{{ header }}</span>
                         <span [id]="ariaLabelledBy" class="p-dialog-title" *ngIf="headerFacet">
@@ -546,15 +546,7 @@ export class Dialog implements AfterContentInit, OnInit, OnDestroy {
         return this.config.getTranslation(TranslationKeys.ARIA)['maximizeLabel'];
     }
 
-    constructor(
-        @Inject(DOCUMENT) private document: Document,
-        @Inject(PLATFORM_ID) private platformId: any,
-        public el: ElementRef,
-        public renderer: Renderer2,
-        public zone: NgZone,
-        private cd: ChangeDetectorRef,
-        public config: PrimeNGConfig
-    ) {
+    constructor(@Inject(DOCUMENT) private document: Document, @Inject(PLATFORM_ID) private platformId: any, public el: ElementRef, public renderer: Renderer2, public zone: NgZone, private cd: ChangeDetectorRef, public config: PrimeNGConfig) {
         this.window = this.document.defaultView as Window;
     }
 
@@ -696,6 +688,7 @@ export class Dialog implements AfterContentInit, OnInit, OnDestroy {
             if (!this.styleElement) {
                 this.styleElement = this.renderer.createElement('style');
                 this.styleElement.type = 'text/css';
+                DomHandler.setAttribute(this.styleElement, 'nonce', this.config?.csp()?.nonce);
                 this.renderer.appendChild(this.document.head, this.styleElement);
                 let innerHTML = '';
                 for (let breakpoint in this.breakpoints) {
@@ -709,7 +702,6 @@ export class Dialog implements AfterContentInit, OnInit, OnDestroy {
                 }
 
                 this.renderer.setProperty(this.styleElement, 'innerHTML', innerHTML);
-                DomHandler.setAttribute(this.styleElement, 'nonce', this.config?.csp()?.nonce);
             }
         }
     }
@@ -952,8 +944,8 @@ export class Dialog implements AfterContentInit, OnInit, OnDestroy {
             case 'visible':
                 this.container = event.element;
                 this.wrapper = this.container?.parentElement;
-                this.appendContainer();
                 this.moveOnTop();
+                this.appendContainer();
                 this.bindGlobalListeners();
                 this.container?.setAttribute(this.id, '');
 
