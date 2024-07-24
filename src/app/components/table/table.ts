@@ -221,7 +221,7 @@ export class TableService {
                         role="table"
                         [ngClass]="{ 'p-datatable-table': true, 'p-datatable-scrollable-table': scrollable, 'p-datatable-resizable-table': resizableColumns, 'p-datatable-resizable-table-fit': resizableColumns && columnResizeMode === 'fit' }"
                         [class]="tableStyleClass"
-                        [style]="tableStyle"
+                        [ngStyle]="tableStyle"
                         [attr.id]="id + '-table'"
                     >
                         <ng-container *ngTemplateOutlet="colGroupTemplate; context: { $implicit: scrollerOptions.columns }"></ng-container>
@@ -242,7 +242,7 @@ export class TableService {
                             role="rowgroup"
                             class="p-datatable-tbody"
                             [ngClass]="scrollerOptions.contentStyleClass"
-                            [style]="scrollerOptions.contentStyle"
+                            [ngStyle]="scrollerOptions.contentStyle"
                             [value]="dataToRender(scrollerOptions.rows)"
                             [pTableBody]="scrollerOptions.columns"
                             [pTableBodyTemplate]="bodyTemplate"
@@ -251,7 +251,7 @@ export class TableService {
                         <tbody
                             role="rowgroup"
                             *ngIf="scrollerOptions.spacerStyle"
-                            [style]="'height: calc(' + scrollerOptions.spacerStyle.height + ' - ' + scrollerOptions.rows.length * scrollerOptions.itemSize + 'px);'"
+                            [ngStyle]="{ height: 'calc(' + scrollerOptions.spacerStyle.height + ' - ' + scrollerOptions.rows.length * scrollerOptions.itemSize + 'px)' }"
                             class="p-datatable-scroller-spacer"
                         ></tbody>
                         <tfoot role="rowgroup" *ngIf="footerGroupedTemplate || footerTemplate" #tfoot class="p-datatable-tfoot">
@@ -309,12 +309,33 @@ export class TableService {
                 <ng-container *ngTemplateOutlet="summaryTemplate"></ng-container>
             </div>
 
-            <div #resizeHelper class="p-column-resizer-helper" style="display:none" *ngIf="resizableColumns"></div>
-            <span #reorderIndicatorUp class="p-datatable-reorder-indicator-up" style="display: none;" *ngIf="reorderableColumns">
+            <div
+                #resizeHelper
+                class="p-column-resizer-helper"
+                [ngStyle]="{
+                    display: 'none'
+                }"
+                *ngIf="resizableColumns"
+            ></div>
+            <span
+                #reorderIndicatorUp
+                class="p-datatable-reorder-indicator-up"
+                [ngStyle]="{
+                    display: 'none'
+                }"
+                *ngIf="reorderableColumns"
+            >
                 <ArrowDownIcon *ngIf="!reorderIndicatorUpIconTemplate" />
                 <ng-template *ngTemplateOutlet="reorderIndicatorUpIconTemplate"></ng-template>
             </span>
-            <span #reorderIndicatorDown class="p-datatable-reorder-indicator-down" style="display: none;" *ngIf="reorderableColumns">
+            <span
+                #reorderIndicatorDown
+                class="p-datatable-reorder-indicator-down"
+                [ngStyle]="{
+                    display: 'none'
+                }"
+                *ngIf="reorderableColumns"
+            >
                 <ArrowUpIcon *ngIf="!reorderIndicatorDownIconTemplate" />
                 <ng-template *ngTemplateOutlet="reorderIndicatorDownIconTemplate"></ng-template>
             </span>
@@ -1555,9 +1576,9 @@ export class Table implements OnInit, AfterViewInit, AfterContentInit, Blockable
                 this.restoringSort = false;
             }
 
-            if (this.lazy) {
-                this.onLazyLoad.emit(this.createLazyLoadMetadata());
-            } else if (this.value) {
+            this.lazy && this.onLazyLoad.emit(this.createLazyLoadMetadata());
+
+            if (this.value) {
                 if (this.customSort) {
                     this.sortFunction.emit({
                         data: this.value,
@@ -1605,9 +1626,8 @@ export class Table implements OnInit, AfterViewInit, AfterContentInit, Blockable
         }
 
         if (this.multiSortMeta) {
-            if (this.lazy) {
-                this.onLazyLoad.emit(this.createLazyLoadMetadata());
-            } else if (this.value) {
+            this.lazy && this.onLazyLoad.emit(this.createLazyLoadMetadata());
+            if (this.value) {
                 if (this.customSort) {
                     this.sortFunction.emit({
                         data: this.value,
@@ -5120,7 +5140,7 @@ export class ReorderableRow implements AfterViewInit {
                             <ng-template *ngTemplateOutlet="addRuleIconTemplate"></ng-template>
                         </button>
                     </div>
-                    <div class="p-column-filter-buttonbar">
+                    <div class="p-column-filter-buttonbar" *ngIf="showButtons">
                         <button #clearBtn *ngIf="showClearButton" type="button" pButton class="p-button-outlined p-button-sm" (click)="clearFilter()" [attr.aria-label]="clearButtonLabel" [label]="clearButtonLabel" pRipple></button>
                         <button *ngIf="showApplyButton" type="button" pButton (click)="applyFilter()" class="p-button-sm" [label]="applyButtonLabel" pRipple [attr.aria-label]="applyButtonLabel"></button>
                     </div>

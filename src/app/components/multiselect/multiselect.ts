@@ -25,7 +25,6 @@ import {
     Renderer2,
     Signal,
     signal,
-    SimpleChanges,
     TemplateRef,
     ViewChild,
     ViewEncapsulation
@@ -346,7 +345,7 @@ export class MultiSelectItem {
                                 </button>
                             </ng-template>
                         </div>
-                        <div class="p-multiselect-items-wrapper" [style.max-height]="virtualScroll ? 'auto' : scrollHeight || 'auto'">
+                        <div class="p-multiselect-items-wrapper" [ngStyle]="{ 'max-height': virtualScroll ? 'auto' : scrollHeight || 'auto' }">
                             <p-scroller
                                 *ngIf="virtualScroll"
                                 #scroller
@@ -373,7 +372,7 @@ export class MultiSelectItem {
                             </ng-container>
 
                             <ng-template #buildInItems let-items let-scrollerOptions="options">
-                                <ul #items class="p-multiselect-items p-component" [ngClass]="scrollerOptions.contentStyleClass" [style]="scrollerOptions.contentStyle" role="listbox" aria-multiselectable="true" [attr.aria-label]="listLabel">
+                                <ul #items class="p-multiselect-items p-component" [ngClass]="scrollerOptions.contentStyleClass" [ngStyle]="scrollerOptions.contentStyle" role="listbox" aria-multiselectable="true" [attr.aria-label]="listLabel">
                                     <ng-template ngFor let-option [ngForOf]="items" let-i="index">
                                         <ng-container *ngIf="isOptionGroup(option)">
                                             <li [attr.id]="id + '_' + getOptionIndex(i, scrollerOptions)" class="p-multiselect-item-group" [ngStyle]="{ height: scrollerOptions.itemSize + 'px' }" role="option">
@@ -572,7 +571,7 @@ export class MultiSelect implements OnInit, AfterViewInit, AfterContentInit, Aft
      * Decides how many selected item labels to show at most.
      * @group Props
      */
-    @Input({ transform: numberAttribute }) selectionLimit: number | undefined;
+    @Input({ transform: (value: unknown) => numberAttribute(value, null) }) selectionLimit: number | null | undefined;
     /**
      * Label to display after exceeding max selected labels e.g. ({0} items selected), defaults "ellipsis" keyword to indicate a text-overflow.
      * @group Props
