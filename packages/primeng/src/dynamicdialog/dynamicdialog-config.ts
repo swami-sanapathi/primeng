@@ -4,7 +4,7 @@ import { Type } from '@angular/core';
  * Dialogs can be created dynamically with any component as the content using a DialogService.
  * @group Components
  */
-export class DynamicDialogConfig<DataType = any, InputValuesType extends  Record<string, any> = {}> {
+export class DynamicDialogConfig<DataType = any, InputValuesType extends Record<string, any> = {}> {
     /**
      * An object to pass to the component loaded inside the Dialog.
      * @group Props
@@ -61,7 +61,7 @@ export class DynamicDialogConfig<DataType = any, InputValuesType extends  Record
      */
     baseZIndex?: number;
     /**
-     * Whether to automatically manage layering.
+     * Whether to re-enforce layering through applying zIndex.
      * @group Props
      */
     autoZIndex?: boolean = false;
